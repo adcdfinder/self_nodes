@@ -36,8 +36,8 @@ public:
   MinimalPublisher()
   : Node("minimal_publisher")
   {
-    publisher1_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("self_msg_transfer", 10);
-    publisher2_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("self_msg_sendout", 10);
+    publisher1_ = this->create_publisher<std_msgs::msg::String>("self_msg_transfer", 10);
+    publisher2_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("self_msg_sendout", rclcpp::SensorDataQoS().keep_last(5) );
 
 
     callback_group_subscriber1_ = this->create_callback_group(
@@ -51,18 +51,18 @@ public:
     sub2_opt.callback_group = callback_group_subscriber2_;
 
     subscriber1_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "self_autoware_msg_receive", 10, std::bind(&MinimalPublisher::rece_callback, this, _1), sub1_opt);
-    subscriber2_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+      "/localization/util/voxel_grid_downsample/pointcloud",rclcpp::SensorDataQoS().keep_last(5), std::bind(&MinimalPublisher::rece_callback, this, _1), sub1_opt);
+    subscriber2_ = this->create_subscription<std_msgs::msg::String>(
       "self_transfer_back", 10, std::bind(&MinimalPublisher::ack_callback, this, _1), sub2_opt);
 
   }
 
 private:
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher1_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher1_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher2_;
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscriber1_;
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscriber2_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscriber2_;
   rclcpp::CallbackGroup::SharedPtr callback_group_subscriber1_;
   rclcpp::CallbackGroup::SharedPtr callback_group_subscriber2_;
   mutex m;
@@ -72,7 +72,9 @@ private:
   void rece_callback(const sensor_msgs::msg::PointCloud2 & msg)
   {
     RCLCPP_INFO(this->get_logger(), "One message is received from autoware");
-    publisher1_->publish(msg);
+    auto message = std_msgs::msg::String();
+    message.data = "Send to cloud ";
+    publisher1_->publish(message);
     {
 
       std::unique_lock lk(m);
@@ -83,7 +85,7 @@ private:
     this->processed = false;
 
   }
-  void ack_callback(const sensor_msgs::msg::PointCloud2 & msg)
+  void ack_callback(const  std_msgs::msg::String & msg)
   {
     RCLCPP_INFO(this->get_logger(), "One message is received from cloud");
     this->processed = true;
